@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0e13" />
+  <title>MMDroid Studio</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.171.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.171.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+<div id="app">
+  <canvas id="viewport"></canvas>
+
+  <header class="topbar glass hidden-panel" id="topbar">
+    <div class="brand"><div class="brand-dot"></div><div><strong>MMDroid Studio</strong><small>Scene Studio 0.21</small></div></div>
+    <div class="top-actions">
+      <button class="primary" id="btnImportModel">＋人物 / 模型包</button>
+      <button id="btnImportStage">＋舞台</button>
+      <button id="btnImportMotion">＋动作</button>
+      <button id="btnImportCamera">＋镜头</button>
+      <button id="btnImportAudio">＋音乐</button>
+      <button id="btnImportHdri">＋HDRI</button>
+      <button id="btnResources">资源</button>
+      <span class="separator"></span>
+      <button id="btnNewFolder">＋文件夹</button>
+      <button id="btnSaveScene">保存场景</button>
+      <button id="btnLoadScene">导入场景</button>
+      <button id="btnExportModel">导出模型</button>
+      <button id="btnFit">聚焦</button>
+    </div>
+  </header>
+  <button class="edge-tab edge-top panel-is-hidden" id="topTab" aria-label="显示或隐藏顶部工具栏">⌄</button>
+
+  <section class="resource-popover glass hidden-resource" id="resourcePanel" aria-hidden="true">
+    <section class="library-browser top-library-browser">
+      <div class="library-toolbar"><div><strong>mmddata 资源库</strong><small id="libraryStatus">等待目录授权</small></div><div class="tiny-actions"><button id="btnLibraryRefresh" title="重新扫描资源清单">↻</button><button id="btnLibraryPermission" title="重新选择 mmddata 存放位置">⌂</button></div></div>
+      <div class="library-tabs" id="libraryTabs">
+        <button class="active" data-library-category="model">人物</button><button data-library-category="costume">服装</button><button data-library-category="hair">头发</button><button data-library-category="accessory">配件</button><button data-library-category="stage">舞台</button><button data-library-category="vmd">VMD</button><button data-library-category="music">音乐</button>
+      </div>
+      <div id="libraryList" class="library-list"><div class="tree-empty">首次启动会请求目录权限并创建 mmddata。</div></div>
+    </section>
+  </section>
+
+  <aside class="scene-panel glass hidden-panel" id="scenePanel">
+    <div class="panel-head">
+      <div><strong>场景层级</strong><small id="sceneSummary">0 对象</small></div>
+      <div class="tiny-actions"><button id="btnSceneExpand" title="全部展开">＋</button><button id="btnSceneCollapse" title="全部折叠">−</button></div>
+    </div>
+    <div class="scene-editbar">
+      <button id="btnTransformMove" class="primary">移动模型</button>
+      <button id="btnTransformRotate">旋转模型</button>
+      <button id="btnTransformReset">回原点</button>
+      <button id="btnToggleBones">展开骨骼</button>
+    </div>
+    <div id="transformHint" class="transform-hint">选择对象后点“移动模型”或“旋转模型”显示三维坐标轴</div>
+    <div id="sceneTree" class="scene-tree"></div>
+  </aside>
+  <button class="edge-tab edge-left panel-is-hidden" id="leftTab" aria-label="显示或隐藏场景层级">›</button>
+
+  <aside class="render-panel glass hidden-panel" id="renderPanel">
+    <div class="panel-head sticky"><div><strong>渲染输出</strong><small>横竖屏 / 2D 纯色背景 / 简单画框 / 高质量 PNG</small></div></div>
+    <div class="inspector-scroll">
+      <details open class="inspector-section">
+        <summary>渲染输出面板</summary>
+        <div class="section-body">
+          <div class="hint">独立于实时预览的离线高质量出图参数。支持内置 2D 纯色背景、简单画框，以及横屏 / 竖屏快速切换。</div>
+          <div class="row compact"><button id="btnCopyRealtimeOffline" class="primary">从实时参数复制</button><button id="btnRenderBgPick">选择图片背景</button><button id="btnRenderBgClear">清除图片</button></div>
+          <label>画面方向</label><select id="outputOrientation"><option value="landscape" selected>横屏</option><option value="portrait">竖屏</option><option value="custom">自定义</option></select>
+          <label>2D 背景来源</label><select id="offlineBgSource"><option value="builtin" selected>内置纯色背景</option><option value="image">自定义图片背景</option><option value="scene">沿用实时 3D 背景</option></select>
+          <label>内置纯色背景</label><select id="offlineBuiltinBg"><option value="white" selected>纯白</option><option value="softgray">柔灰</option><option value="beige">奶油米</option><option value="pink">淡粉</option><option value="sky">浅天蓝</option><option value="mint">薄荷绿</option><option value="lavender">浅薰衣草</option><option value="charcoal">深灰黑</option></select>
+          <div id="offlineBgInfo" class="hint">2D 输出背景：当前使用内置纯色背景；如需图片背景，可点击“选择图片背景”。</div>
+          <label>2D 背景适配</label><select id="offlineBgFit"><option value="cover" selected>Cover · 裁切填满</option><option value="contain">Contain · 完整显示</option><option value="stretch">Stretch · 拉伸</option></select>
+          <label>简单画框</label><select id="offlineFrameStyle"><option value="none" selected>无画框</option><option value="whiteThin">白色细框</option><option value="blackThin">黑色细框</option><option value="gallery">展板留白框</option><option value="polaroid">拍立得白边</option></select>
+          <label>输出渲染管线</label><select id="offlinePipeline"><option value="mmdPhong">Studio Blinn–Phong Character</option><option value="blenderPbr" selected>GGX IBL Principled PBR</option><option value="skinOily">Dual-Lobe Dermal Specular</option><option value="skinSilicone">Polymer SSS Approximation</option><option value="toonClassic">Multi-Band Cel NPR</option><option value="genshin">Layered Anime NPR</option></select>
+          <label>输出皮肤预设</label><select id="offlineSkinPreset"><option value="natural" selected>Natural Neutral</option><option value="warm">Warm Dermal</option><option value="porcelain">Porcelain Matte</option><option value="tan">Sun-Kissed</option><option value="sebum">Sebum Gloss</option><option value="silicone">Soft Silicone</option></select>
+          <label>输出皮肤强度 <output id="offlineSkinStrengthOut">0.70</output></label><input id="offlineSkinStrength" type="range" min="0" max="1" value="0.70" step="0.01" />
+          <div class="subhead">独立布光</div>
+          <div class="row compact"><label>Key 色<input id="offlineKeyColor" type="color" value="#ffffff" /></label><label>方位°<input id="offlineKeyAz" type="number" value="-35" step="1" /></label><label>高度°<input id="offlineKeyEl" type="number" value="50" step="1" /></label></div>
+          <label>Key <output id="offlineKeyOut">1.00</output></label><input id="offlineKey" type="range" min="0" max="6" value="1.00" step="0.05" />
+          <div class="row compact"><label>Fill 色<input id="offlineFillColor" type="color" value="#c8d6ff" /></label><label>方位°<input id="offlineFillAz" type="number" value="45" step="1" /></label><label>高度°<input id="offlineFillEl" type="number" value="25" step="1" /></label></div>
+          <label>Fill <output id="offlineFillOut">0.28</output></label><input id="offlineFill" type="range" min="0" max="4" value="0.28" step="0.05" />
+          <div class="row compact"><label>Rim 色<input id="offlineRimColor" type="color" value="#f0e7ff" /></label><label>方位°<input id="offlineRimAz" type="number" value="150" step="1" /></label><label>高度°<input id="offlineRimEl" type="number" value="35" step="1" /></label></div>
+          <label>Rim <output id="offlineRimOut">0.45</output></label><input id="offlineRim" type="range" min="0" max="5" value="0.45" step="0.05" />
+          <div class="row compact"><label>环境天空<input id="offlineAmbientSky" type="color" value="#ffffff" /></label><label>环境地面<input id="offlineAmbientGround" type="color" value="#66656b" /></label></div>
+          <label>Ambient <output id="offlineAmbientOut">0.42</output></label><input id="offlineAmbient" type="range" min="0" max="3" value="0.42" step="0.05" />
+          <label>IBL <output id="offlineIblOut">0.75</output></label><input id="offlineIbl" type="range" min="0" max="3" value="0.75" step="0.05" />
+          <label>Exposure <output id="offlineExposureOut">0.88</output></label><input id="offlineExposure" type="range" min="0.2" max="2.5" value="0.88" step="0.02" />
+          <div class="subhead">输出质量</div>
+          <label>分辨率</label><select id="offlineResolution"><option value="3840x2160" selected>UHD 4K · 3840×2160</option><option value="4096x2160">DCI 4K · 4096×2160</option><option value="2160x3840">UHD 4K 竖屏 · 2160×3840</option><option value="2880x5120">5K 竖屏 · 2880×5120</option><option value="5120x2880">5K · 5120×2880</option><option value="7680x4320">8K · 7680×4320</option><option value="custom">自定义</option></select>
+          <div class="row compact"><label>W<input id="offlineWidth" type="number" min="512" max="8192" value="3840" step="16" /></label><label>H<input id="offlineHeight" type="number" min="512" max="8192" value="2160" step="16" /></label></div>
+          <label>子像素采样</label><select id="offlineSamples"><option value="1">1× · 快速</option><option value="2">2×</option><option value="4" selected>4× · 推荐</option><option value="8">8× · 高质量</option><option value="16">16× · 极慢</option></select>
+          <label>Shadow Map</label><select id="offlineShadowMap"><option value="2048">2048</option><option value="4096" selected>4096</option><option value="8192">8192</option></select>
+          <label>软阴影半径 <output id="offlineShadowRadiusOut">3.0</output></label><input id="offlineShadowRadius" type="range" min="0" max="12" value="3" step="0.25" />
+          <label class="switchline"><input id="offlineHideBuiltin" type="checkbox" checked /> 使用 2D 背景时隐藏内置 3D 天空/街景</label>
+          <label class="switchline"><input id="offlineHideFloor" type="checkbox" checked /> 使用 2D 背景时隐藏地面与网格</label>
+          <button id="btnOfflineRender" class="full primary">渲染并保存高质量 PNG</button>
+          <div id="offlineRenderStatus" class="hint">离线输出尚未开始。</div>
+        </div>
+      </details>
+    </div>
+  </aside>
+  <button class="edge-tab edge-render panel-is-hidden" id="renderTab" aria-label="显示或隐藏渲染输出面板">›</button>
+
+  <aside class="inspector glass hidden-panel" id="inspectorPanel">
+    <div class="panel-head sticky">
+      <div><strong id="inspectorTitle">场景</strong><small id="inspectorSubtitle">Scene Inspector</small></div>
+    </div>
+    <div class="inspector-scroll">
+
+      <details open class="inspector-section" data-types="scene">
+        <summary>场景总览</summary>
+        <div class="section-body">
+          <div id="sceneStats" class="stats-card">尚未导入对象</div>
+          <div class="hint">从左侧选择人物、骨骼、材质、IK、舞台、服装、配件、镜头或灯光，右侧只显示该对象对应的编辑参数。</div>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="model,costume,hair,stage,accessory">
+        <summary>对象 / Transform</summary>
+        <div class="section-body">
+          <div class="row two"><label class="switchline"><input type="checkbox" id="activeVisible" checked /> 可见</label><button id="btnDeleteObject" class="danger">删除对象</button></div>
+          <div class="label-reset"><label>统一缩放 <output id="scaleOut">1.00</output></label><button id="btnResetScale" class="mini-reset">还原</button></div><input id="scale" type="range" min="0.001" max="20" value="1" step="0.001" />
+          <div class="label-reset"><div class="vec3-label">位置</div><button id="btnResetPosition" class="mini-reset">还原</button></div><div class="xyz-grid"><label>X<input id="posX" type="number" value="0" step="0.05" /></label><label>Y<input id="posY" type="number" value="0" step="0.05" /></label><label>Z<input id="posZ" type="number" value="0" step="0.05" /></label></div>
+          <div class="label-reset"><div class="vec3-label">旋转 °</div><button id="btnResetRotation" class="mini-reset">还原</button></div><div class="xyz-grid"><label>X<input id="rotX" type="number" value="0" step="1" /></label><label>Y<input id="rotY" type="number" value="0" step="1" /></label><label>Z<input id="rotZ" type="number" value="0" step="1" /></label></div>
+          <label>逻辑文件夹</label><select id="objectFolder"><option value="">场景根节点</option></select>
+          <button id="btnRepairVisibility" class="full">修复人物可见性 / 材质状态</button><div id="mmdCompatInfo" class="hint compat-info">MMD Android 兼容材质将在导入时自动启用。</div>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="model">
+        <summary>装扮资源 / 服装 · 头发 · 配件</summary>
+        <div class="section-body">
+          <div class="hint">资源栏中的服装、头发、配件仅用于浏览。必须先选中人物，再在这里选择资源并应用，程序会自动以当前人物作为适配目标。</div>
+          <div class="wearable-library-grid">
+            <label>服装资源<select id="costumeLibrarySelect"><option value="">暂无服装资源</option></select></label>
+            <div class="row compact"><button id="btnApplyCostumeLibrary" class="primary">应用整套服装</button><button id="btnImportCostumeLocal">从文件导入</button></div>
+            <label>头发资源<select id="hairLibrarySelect"><option value="">暂无头发资源</option></select></label>
+            <div class="row compact"><button id="btnApplyHairLibrary" class="primary">应用整套头发</button><button id="btnImportHairLocal">从文件导入</button></div>
+            <label>配件资源<select id="accessoryLibrarySelect"><option value="">暂无配件资源</option></select></label>
+            <div class="row compact"><button id="btnApplyAccessoryLibrary" class="primary">应用整套配件</button><button id="btnImportAccessoryLocal">从文件导入</button></div>
+          </div>
+          <div class="subhead">当前人物内部显示</div>
+          <div class="hint">这里控制当前人物以及已适配到该人物的装扮部件逐件显示/隐藏；切换整套资源后列表会自动刷新。</div>
+          <div class="row compact"><button id="btnShowAllCostume">服装全显</button><button id="btnHideAllCostume">服装全隐</button></div>
+          <div class="row compact"><button id="btnShowAllHair">头发全显</button><button id="btnHideAllHair">头发全隐</button></div>
+          <div class="row compact"><button id="btnShowAllAccessory">配件全显</button><button id="btnHideAllAccessory">配件全隐</button></div>
+          <button id="btnResetModelParts" class="full">恢复模型默认装扮显示</button>
+          <div id="modelPartList" class="model-part-list"><div class="tree-empty">当前模型尚未识别服装/头发/配件分组</div></div>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="model">
+        <summary>表面光滑 / 纹理质量</summary>
+        <div class="section-body">
+          <label>光滑预设</label><select id="smoothPreset"><option value="source">原始法线（不处理）</option><option value="conservative">保守 · 源法线融合</option><option value="standard" selected>标准 · 角度焊接</option><option value="strong">强力 · 宽角焊接</option><option value="ultra">超平滑 · 全焊接</option><option value="custom">自定义</option></select>
+          <label>光滑角度 <output id="smoothAngleOut">85°</output></label><input id="smoothAngle" type="range" min="0" max="180" value="85" step="1" />
+          <label>光滑强度 <output id="smoothStrengthOut">0.72</output></label><input id="smoothStrength" type="range" min="0" max="1" value="0.72" step="0.01" />
+          <div class="row two"><button id="btnApplySmooth" class="primary">应用光滑</button><button id="btnRestoreNormals">恢复原始法线</button></div>
+          <label>纹理清晰度</label><select id="textureQuality"><option value="performance">性能</option><option value="balanced">均衡</option><option value="high" selected>高清</option><option value="ultra">超清</option></select>
+          <label>纹理细节锐化 <output id="textureSharpnessOut">0.55</output></label><input id="textureSharpness" type="range" min="0" max="1" value="0.55" step="0.01" />
+          <div id="textureQualityInfo" class="hint">高清：高像素密度 + GPU 最大各向异性 + 三线性 Mipmap；细节锐化用于恢复衣服织纹与印花边缘。</div>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="model">
+        <summary>人物 / 预设表情</summary>
+        <div class="section-body">
+          <label>表情预设</label><select id="expressionPreset"><option value="neutral">Neutral · 中性</option></select>
+          <label>预设强度 <output id="expressionPresetStrengthOut">1.00</output></label><input id="expressionPresetStrength" type="range" min="0" max="1" value="1" step="0.01" />
+          <div class="row compact"><button id="btnApplyExpressionPreset" class="primary">应用预设</button><button id="btnClearExpression">恢复中性</button></div>
+          <div id="expressionPresetInfo" class="hint">优先识别模型自身 Group Morph / 表情预设，并兼容传统 PMX 表情面板。</div>
+          <details class="nested-details">
+            <summary>高级：单独 Morph 调整</summary>
+            <div class="nested-body">
+              <div class="row two"><select id="morphSelect"><option value="">暂无表情</option></select><button id="btnResetMorph">清零</button></div>
+              <label>权重 <output id="morphOut">0.00</output></label><input id="morphWeight" type="range" min="0" max="1" value="0" step="0.01" />
+            </div>
+          </details>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="model,bone" id="eyeSection">
+        <summary>眼睛上下旋转校正</summary>
+        <div class="section-body">
+          <div id="eyeBoneInfo" class="hint">优先寻找眼球骨骼；会避开 eye socket / eyelid / 眼眶 / 眼皮等骨骼。转换模型可手动指定。</div>
+          <div class="row compact"><label>左眼骨骼<select id="eyeBoneLeftSelect"></select></label><label>右眼骨骼<select id="eyeBoneRightSelect"></select></label></div>
+          <button id="btnAutoEyeBones" class="full">重新自动识别眼球骨骼</button>
+          <label>双眼上下旋转 <output id="eyePitchOut">0.0°</output></label><input id="eyePitch" type="range" min="-45" max="45" value="0" step="0.25" />
+          <label>左眼上下微调 <output id="eyePitchLeftOut">0.0°</output></label><input id="eyePitchLeft" type="range" min="-25" max="25" value="0" step="0.25" />
+          <label>右眼上下微调 <output id="eyePitchRightOut">0.0°</output></label><input id="eyePitchRight" type="range" min="-25" max="25" value="0" step="0.25" />
+          <button id="btnResetEyes" class="full">重置眼睛旋转校正</button>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="bone">
+        <summary>骨骼 Inspector</summary>
+        <div class="section-body">
+          <div id="boneNameLabel" class="selection-name">未选择骨骼</div>
+          <div class="hint">骨骼树在左侧展开。这里的值以 VMD/动画结果为基准叠加，不会破坏原始模型。</div>
+          <div class="vec3-label">位置偏移</div><div class="xyz-grid"><label>X<input id="bonePosX" type="number" value="0" step="0.001" /></label><label>Y<input id="bonePosY" type="number" value="0" step="0.001" /></label><label>Z<input id="bonePosZ" type="number" value="0" step="0.001" /></label></div>
+          <div class="vec3-label">旋转偏移 °</div><div class="xyz-grid"><label>X<input id="boneRotX" type="number" value="0" step="0.25" /></label><label>Y<input id="boneRotY" type="number" value="0" step="0.25" /></label><label>Z<input id="boneRotZ" type="number" value="0" step="0.25" /></label></div>
+          <button id="btnResetBone" class="full">重置当前骨骼</button>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="ik">
+        <summary>IK Inspector</summary>
+        <div class="section-body">
+          <div id="ikNameLabel" class="selection-name">未选择 IK</div>
+          <label class="switchline"><input id="ikGlobal" type="checkbox" checked /> 全局启用 MMD IK</label>
+          <label class="switchline"><input id="ikEnabled" type="checkbox" checked /> 当前 IK 链启用</label>
+          <label>迭代次数 <output id="ikIterationOut">1</output></label><input id="ikIteration" type="range" min="1" max="64" value="1" step="1" />
+          <div class="row compact"><label>最小角°<input id="ikMinAngle" type="number" step="0.1" placeholder="自动" /></label><label>最大角°<input id="ikMaxAngle" type="number" step="0.1" placeholder="自动" /></label></div>
+          <label>链节</label><select id="ikLinkSelect"><option value="">暂无链节</option></select>
+          <label class="switchline"><input id="ikLinkEnabled" type="checkbox" checked /> 当前链节参与求解</label>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="material">
+        <summary>材质编辑器</summary>
+        <div class="section-body">
+          <div id="materialNameLabel" class="selection-name">未选择材质</div>
+          <div class="row compact"><label>颜色<input id="matColor" type="color" value="#ffffff" /></label><label>自发光<input id="matEmissive" type="color" value="#000000" /></label></div>
+          <label>透明度 <output id="matOpacityOut">1.00</output></label><input id="matOpacity" type="range" min="0" max="1" value="1" step="0.01" />
+          <label>透明模式</label><select id="matAlphaMode"><option value="auto" selected>自动识别（推荐）</option><option value="opaque">不透明</option><option value="cutout">Alpha Cutout</option><option value="blend">半透明 Blend</option><option value="hybrid">稳定混合透明 / Stable Blend</option><option value="additive">加法 / 黑底透明（Namida）</option><option value="multiply">正片叠底</option></select>
+          <label>Alpha Cutoff <output id="matAlphaCutoffOut">0.08</output></label><input id="matAlphaCutoff" type="range" min="0" max="0.9" value="0.08" step="0.01" />
+          <div class="toggle-grid"><label class="switchline"><input id="matTransparent" type="checkbox" /> 透明混合</label><label class="switchline"><input id="matDepthWrite" type="checkbox" checked /> 写入深度</label><label class="switchline"><input id="matDoubleSide" type="checkbox" checked /> 双面</label><label class="switchline"><input id="matWireframe" type="checkbox" /> 线框</label><label class="switchline"><input id="matTextureEnabled" type="checkbox" checked /> 主纹理</label><label class="switchline"><input id="matOutlineVisible" type="checkbox" checked /> MMD 描边</label></div>
+          <label>粗糙度 <output id="matRoughnessOut">—</output></label><input id="matRoughness" type="range" min="0" max="1" value="0.5" step="0.01" />
+          <label>金属度 <output id="matMetalnessOut">—</output></label><input id="matMetalness" type="range" min="0" max="1" value="0" step="0.01" />
+          <label>描边宽度 <output id="matOutlineThicknessOut">0.003</output></label><input id="matOutlineThickness" type="range" min="0" max="0.03" value="0.003" step="0.00025" />
+          <button id="btnResetMaterial" class="full">恢复该材质导入状态</button>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="costume hair accessory">
+        <summary>服装 / 配件适配</summary>
+        <div class="section-body">
+          <label>目标人物</label><select id="attachModel"><option value="">不绑定</option></select>
+          <label>目标骨骼（配件可选）</label><select id="attachBone"><option value="">—</option></select>
+          <button id="btnApplyAttachment" class="full">应用适配 / 绑定</button>
+          <button id="btnDetachAttachment" class="full">解除绑定</button>
+          <div class="hint">服装：会根据目标人物包围盒自动缩放，并尽量按同名骨骼跟随。配件：可绑定到根节点或指定骨骼。</div>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="folder">
+        <summary>文件夹 / Group</summary>
+        <div class="section-body">
+          <label>名称<input id="folderName" type="text" value="Folder" /></label>
+          <label>父文件夹</label><select id="folderParent"><option value="">场景根节点</option></select>
+          <button id="btnApplyFolder" class="full">应用文件夹设置</button>
+          <button id="btnDeleteFolder" class="full danger">删除文件夹（对象移到根节点）</button>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="physics">
+        <summary>物理刚体 / 裙摆</summary>
+        <div class="section-body">
+          <div id="physicsObjectName" class="selection-name">物理设置</div>
+          <label class="switchline"><input id="physicsEnabled" type="checkbox" /> 启用 Ammo/MMD 刚体物理</label>
+          <label>物理范围</label><select id="physicsProfile"><option value="all">全部刚体</option><option value="skirtHair">裙摆 / 头发优先</option></select>
+          <label>重力 Y <output id="gravityOut">-98.0</output></label><input id="gravity" type="range" min="-196" max="0" value="-98" step="1" />
+          <label>物理子步数 <output id="physicsStepsOut">3</output></label><input id="physicsSteps" type="range" min="1" max="10" value="3" step="1" />
+          <button id="btnRebuildPhysics" class="full">重建当前人物物理</button>
+          <div id="physicsStatus" class="hint">首次开启会加载 Ammo.js；复杂裙摆和头发会明显增加手机 GPU/CPU 开销。</div>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="scene,model,motion">
+        <summary>动作 / Motion</summary>
+        <div class="section-body">
+          <label>动作绑定目标人物</label>
+          <div class="row two"><select id="motionTargetModel"><option value="">自动跟随当前选中人物</option></select><button id="btnUseSelectedAsMotionTarget">使用当前人物</button></div>
+          <div id="motionTargetInfo" class="hint">可为不同人物分别绑定不同动作；导入 VMD 时会绑定到这里指定的人物。</div>
+          <div id="motionInfo" class="selection-name">未选择动作</div>
+          <div class="hint">VMD 动作绑定到对应 PMX/PMD 人物。时间轴会显示导入动画的采样关键点与编辑器关键帧。</div>
+          <button id="btnRemoveMotion" class="full danger">移除当前人物动作</button>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="camera">
+        <summary>镜头</summary>
+        <div class="section-body">
+          <label class="switchline"><input id="cameraEnabled" type="checkbox" checked /> 启用 VMD 镜头</label>
+          <label>FOV <output id="fovOut">42°</output></label><input id="fov" type="range" min="10" max="100" value="42" step="1" />
+          <div class="vec3-label">Orbit 目标</div><div class="xyz-grid"><label>X<input id="camTargetX" type="number" value="0" step="0.1" /></label><label>Y<input id="camTargetY" type="number" value="10" step="0.1" /></label><label>Z<input id="camTargetZ" type="number" value="0" step="0.1" /></label></div>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="audio">
+        <summary>音乐</summary>
+        <div class="section-body"><label>音量 <output id="volumeOut">0.80</output></label><input id="volume" type="range" min="0" max="1" value="0.8" step="0.01" /><div id="audioInfo" class="hint">未导入音乐</div></div>
+      </details>
+
+      <details open class="inspector-section" data-types="lighting">
+        <summary>角色渲染管线</summary>
+        <div class="section-body">
+          <label>管线</label><select id="renderPipeline"><option value="mmdPhong" selected>Studio Blinn–Phong Character</option><option value="blenderPbr">GGX IBL Principled PBR</option><option value="skinOily">Dual-Lobe Dermal Specular</option><option value="skinSilicone">Polymer SSS Approximation</option><option value="toonClassic">Multi-Band Cel NPR</option><option value="genshin">Layered Anime NPR</option><option value="unlit">Unlit Diagnostic</option></select>
+          <label>皮肤预设</label><select id="skinPreset"><option value="natural" selected>Natural Neutral · 自然中性</option><option value="warm">Warm Dermal · 自然暖肤</option><option value="porcelain">Porcelain Matte · 哑光瓷肌</option><option value="tan">Sun-Kissed · 健康小麦</option><option value="sebum">Sebum Gloss · 油润高光</option><option value="silicone">Soft Silicone · 柔润硅胶</option></select>
+          <label>皮肤预设强度 <output id="skinPresetStrengthOut">0.70</output></label><input id="skinPresetStrength" type="range" min="0" max="1" value="0.70" step="0.01" />
+          <div id="skinPresetInfo" class="hint">皮肤预设独立于渲染管线，可在同一 PBR/NPR 管线下切换自然、暖肤、瓷肌、小麦、油润或硅胶观感。</div>
+          <label>Toon 明暗阶数 <output id="toonBandsOut">4</output></label><input id="toonBands" type="range" min="2" max="8" value="4" step="1" />
+          <div class="subhead">透明材质全局校准</div>
+          <label>薄纱/透明衣料实体保留 <output id="clothAlphaBoostOut">1.28</output></label><input id="clothAlphaBoost" type="range" min="0.75" max="1.80" value="1.28" step="0.02" />
+          <label>丝袜基础不透明度 <output id="hosieryOpacityOut">0.48</output></label><input id="hosieryOpacity" type="range" min="0.18" max="0.85" value="0.48" step="0.01" />
+          <button id="btnRebuildMaterials" class="full">重新应用管线 / 透明策略</button>
+          <div id="renderPipelineInfo" class="hint">Legacy Character Lighting：连续角色光照；头发使用专门的发丝平滑与亮带。</div>
+          <div class="hint">透明策略会自动区分实体、镂空、头发 Alpha-to-Coverage、稳定薄纱 Blend 与丝袜独立透明度；网格永远在人物之前渲染。</div>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="lighting">
+        <summary>三点布光</summary>
+        <div class="section-body">
+          <div class="subhead">主光 Key</div><div class="row color-row"><label>颜色</label><input id="keyColor" type="color" value="#ffffff" /></div><label>强度 <output id="keyLightOut">1.35</output></label><input id="keyLight" type="range" min="0" max="12" value="1.35" step="0.05" /><div class="row compact"><label>方位°<input id="lightAz" type="number" value="-35" step="1" /></label><label>高度°<input id="lightEl" type="number" value="50" step="1" /></label></div>
+          <div class="subhead">补光 Fill</div><div class="row color-row"><label>颜色</label><input id="fillColor" type="color" value="#c8d6ff" /></div><label>强度 <output id="fillLightOut">0.42</output></label><input id="fillLight" type="range" min="0" max="8" value="0.42" step="0.05" /><div class="row compact"><label>方位°<input id="fillAz" type="number" value="45" step="1" /></label><label>高度°<input id="fillEl" type="number" value="25" step="1" /></label></div>
+          <div class="subhead">轮廓光 Rim</div><div class="row color-row"><label>颜色</label><input id="rimColor" type="color" value="#f0e7ff" /></div><label>强度 <output id="rimLightOut">0.70</output></label><input id="rimLight" type="range" min="0" max="10" value="0.70" step="0.05" /><div class="row compact"><label>方位°<input id="rimAz" type="number" value="150" step="1" /></label><label>高度°<input id="rimEl" type="number" value="35" step="1" /></label></div>
+          <div class="subhead">环境与曝光</div><label>环境光 <output id="ambientOut">0.58</output></label><input id="ambient" type="range" min="0" max="5" value="0.58" step="0.05" /><div class="row compact"><label>天空<input id="ambientSky" type="color" value="#ffffff" /></label><label>地面<input id="ambientGround" type="color" value="#66656b" /></label></div><label>曝光 <output id="exposureOut">1.00</output></label><input id="exposure" type="range" min="0.1" max="4" value="1" step="0.05" />
+        </div>
+      </details>
+
+      <details class="inspector-section" data-types="lighting">
+        <summary>阴影 / Toon / 烘焙缓存</summary>
+        <div class="section-body">
+          <div class="toggle-grid shadow-toggle-grid">
+            <label class="switchline"><input id="shadows" type="checkbox" checked /> 实时阴影</label>
+            <label class="switchline"><input id="characterSelfShadow" type="checkbox" /> 角色自阴影</label>
+            <label class="switchline"><input id="outlineEnabled" type="checkbox" /> MMD Toon 描边</label>
+          </div>
+          <label>Shadow Map</label><select id="shadowMapSize"><option>512</option><option>1024</option><option selected>2048</option><option>4096</option></select>
+          <label>Bias <output id="shadowBiasOut">0.00020</output></label><input id="shadowBias" type="range" min="-0.01" max="0.01" value="0.00020" step="0.00005" /><label>Normal Bias <output id="shadowNormalBiasOut">0.045</output></label><input id="shadowNormalBias" type="range" min="0" max="0.2" value="0.045" step="0.002" /><label>Soft Radius <output id="shadowRadiusOut">1.5</output></label><input id="shadowRadius" type="range" min="0" max="10" value="1.5" step="0.25" />
+          <div class="row compact"><button id="btnBakeShadow" class="primary">冻结阴影缓存</button><button id="btnRealtimeShadow">恢复实时</button></div><button id="btnRefreshBake" class="full">重新烘焙阴影缓存</button><div id="bakeStatus" class="hint">阴影模式：实时</div>
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="lighting">
+        <summary>高级后期 / Bloom · SSAO · DOF</summary>
+        <div class="section-body">
+          <label class="switchline"><input id="postEnabled" type="checkbox" /> 启用后期管线</label>
+          <div class="subhead">Bloom</div><label class="switchline"><input id="bloomEnabled" type="checkbox" /> 启用 Bloom</label><label>强度 <output id="bloomStrengthOut">0.50</output></label><input id="bloomStrength" type="range" min="0" max="3" value="0.5" step="0.05" /><label>阈值 <output id="bloomThresholdOut">0.85</output></label><input id="bloomThreshold" type="range" min="0" max="1" value="0.85" step="0.01" /><label>半径 <output id="bloomRadiusOut">0.35</output></label><input id="bloomRadius" type="range" min="0" max="1" value="0.35" step="0.01" />
+          <div class="subhead">SSAO</div><label class="switchline"><input id="ssaoEnabled" type="checkbox" /> 启用 SSAO</label><label>Kernel Radius <output id="ssaoRadiusOut">8</output></label><input id="ssaoRadius" type="range" min="1" max="32" value="8" step="1" /><div class="row compact"><label>Min<input id="ssaoMin" type="number" value="0.005" step="0.001" min="0" /></label><label>Max<input id="ssaoMax" type="number" value="0.10" step="0.01" min="0" /></label></div>
+          <div class="subhead">景深 DOF</div><label class="switchline"><input id="dofEnabled" type="checkbox" /> 启用 DOF</label><label>焦距距离 <output id="dofFocusOut">25.0</output></label><input id="dofFocus" type="range" min="0.1" max="200" value="25" step="0.1" /><label>光圈 <output id="dofApertureOut">0.025</output></label><input id="dofAperture" type="range" min="0" max="0.15" value="0.025" step="0.001" /><label>最大模糊 <output id="dofMaxBlurOut">0.010</output></label><input id="dofMaxBlur" type="range" min="0" max="0.08" value="0.01" step="0.001" />
+        </div>
+      </details>
+
+      <details open class="inspector-section" data-types="environment">
+        <summary>环境 / HDRI</summary>
+        <div class="section-body">
+          <label>内置环境</label><select id="builtinEnvironment"><option value="solid" selected>纯色 / 自定义 HDRI</option><option value="studio">Studio Cyclorama · 摄影棚</option><option value="clearSky">Clear Day Skybox · 晴空</option><option value="sunset">Golden Hour Skybox · 黄昏</option><option value="night">Urban Night Skybox · 夜空</option><option value="konbini">Japanese Convenience Street · 日本便利店街景</option></select>
+          <div id="builtinEnvironmentInfo" class="hint">内置背景完全离线生成；便利店为原创通用街景，不含真实品牌素材。</div>
+          <div id="hdriInfo" class="hint">未导入 HDRI</div><label class="switchline"><input id="hdriBackground" type="checkbox" /> HDRI 同时作为背景</label><label>IBL 强度 <output id="hdriIntensityOut">1.00</output></label><input id="hdriIntensity" type="range" min="0" max="4" value="1" step="0.05" />
+          <div class="row compact"><label>背景<input id="bgColor" type="color" value="#151922" /></label><label>地面<input id="floorColor" type="color" value="#202631" /></label></div><label>地面粗糙度 <output id="floorRoughnessOut">0.82</output></label><input id="floorRoughness" type="range" min="0" max="1" value="0.82" step="0.01" /><label>地面金属度 <output id="floorMetalnessOut">0.03</output></label><input id="floorMetalness" type="range" min="0" max="1" value="0.03" step="0.01" />
+          <div class="toggle-grid"><label class="switchline"><input id="gridVisible" type="checkbox" checked /> 网格</label><label class="switchline"><input id="floorVisible" type="checkbox" checked /> 地面</label><label class="switchline"><input id="fogEnabled" type="checkbox" /> 雾效</label></div><div class="row compact"><label>雾色<input id="fogColor" type="color" value="#151922" /></label><label>密度<input id="fogDensity" type="number" value="0.006" step="0.001" min="0" /></label></div>
+        </div>
+      </details>
+
+    </div>
+  </aside>
+  <button class="edge-tab edge-right panel-is-hidden" id="rightTab" aria-label="显示或隐藏属性面板">‹</button>
+
+  <footer class="timeline-panel glass hidden-panel" id="transport">
+    <div class="transport-row">
+      <button id="btnPlay" class="play">▶</button><button id="btnStop">■</button><button id="btnPrevKey" class="frame-nav" title="上一个关键帧">上一关键帧</button><button id="btnNextKey" class="frame-nav" title="下一个关键帧">下一关键帧</button><button id="btnAddKey" class="primary">＋关键帧</button><button id="btnDeleteKey">删除帧</button><select id="keyChannel" title="关键帧通道"><option value="auto">自动通道</option><option value="transform">变换</option><option value="morph">当前表情</option><option value="eye">眼睛旋转</option></select>
+      <span class="time" id="timeLabel">00:00.00 / 00:10.00</span>
+      <label class="transport-field">FPS<select id="timelineFps"><option>24</option><option selected>30</option><option>60</option></select></label>
+      <label class="transport-field">缩放<input id="timelineZoom" type="range" min="20" max="180" value="60" step="5" /></label>
+      <label class="switchline inline"><input id="loop" type="checkbox" checked /> 循环</label>
+      <div id="status" class="status">初始化...</div>
+    </div>
+    <div class="timeline-body"><div id="timelineTrackLabels" class="timeline-track-labels"></div><div class="timeline-canvas-wrap"><canvas id="timelineCanvas"></canvas></div></div>
+  </footer>
+  <button class="edge-tab edge-bottom panel-is-hidden" id="bottomTab" aria-label="显示或隐藏时间轴">⌃</button>
+
+  <div class="toast" id="toast"></div>
+  <div class="loading hidden" id="loading"><div class="spinner"></div><span id="loadingText">正在载入...</span></div>
+
+  <input id="modelInput" type="file" hidden multiple accept=".zip,.rar,.pmx,.pmd,.fbx,.glb,.gltf,.obj,.png,.jpg,.jpeg,.bmp,.tga,.webp,.gif,.spa,.sph,.dds,.mtl" />
+  <input id="costumeInput" type="file" hidden multiple accept=".zip,.rar,.pmx,.pmd,.fbx,.glb,.gltf,.obj,.png,.jpg,.jpeg,.bmp,.tga,.webp,.gif,.spa,.sph,.dds,.mtl" />
+  <input id="hairInput" type="file" hidden multiple accept=".zip,.rar,.pmx,.pmd,.fbx,.glb,.gltf,.obj,.png,.jpg,.jpeg,.bmp,.tga,.webp,.gif,.spa,.sph,.dds,.mtl" />
+  <input id="stageInput" type="file" hidden multiple accept=".pmx,.pmd,.fbx,.glb,.gltf,.obj,.png,.jpg,.jpeg,.bmp,.tga,.webp,.gif,.spa,.sph,.dds,.mtl" />
+  <input id="accessoryInput" type="file" hidden multiple accept=".pmx,.pmd,.fbx,.glb,.gltf,.obj,.png,.jpg,.jpeg,.bmp,.tga,.webp,.gif,.spa,.sph,.dds,.mtl" />
+  <input id="motionInput" type="file" hidden multiple accept=".vmd" />
+  <input id="cameraInput" type="file" hidden multiple accept=".vmd" />
+  <input id="audioInput" type="file" hidden accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac" />
+  <input id="hdriInput" type="file" hidden accept=".hdr,image/vnd.radiance" />
+  <input id="sceneInput" type="file" hidden accept=".json,.mmdscene" />
+  <input id="renderBgInput" type="file" hidden accept="image/*,.png,.jpg,.jpeg,.webp,.bmp" />
+</div>
+<script type="module" src="app.js"></script>
+<script>
+setTimeout(function(){
+  if(window.__MMDROID_READY) return;
+  var t=document.getElementById('toast'), st=document.getElementById('status');
+  if(t){t.textContent='3D/MMD 运行库没有启动。请确认设备联网；当前版本固定 Three.js r171。';t.classList.add('show');}
+  if(st)st.textContent='运行库加载失败';
+},9000);
+</script>
+</body>
+</html>
